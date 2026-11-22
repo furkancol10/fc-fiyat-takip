@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>{{ name }} — Demo Mağaza</title>
+  <script type="application/ld+json">{{ jsonld_safe | safe }}</script>
+</head>
+<body>
+  <main>
+    <h1>{{ name }}</h1>
+    <p>Fiyat: <span class="product-price">{{ price_str }} {{ currency }}</span></p>
+    <p>Stok Durumu: <span class="product-stock">{{ stock_label }}</span></p>
+  </main>
+</body>
+</html>

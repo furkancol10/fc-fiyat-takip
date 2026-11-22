@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>{{ name }} — Demo Mağaza</title>
+</head>
+<body>
+  <main>
+    <h1>{{ name }}</h1>
+    <p>Fiyat: <span class="price">{{ price_str }} {{ currency }}</span></p>
+    <p>Stok Durumu: <span class="stock" data-in-stock="{{ 'true' if in_stock else 'false' }}">{{ stock_label }}</span></p>
+  </main>
+</body>
+</html>
