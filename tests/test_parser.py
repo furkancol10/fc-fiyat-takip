@@ -319,6 +319,14 @@ def test_parse_mode_css_raises_when_selector_missing() -> None:
         ("$49.95", Decimal("49.95")),
         ("€1.050,00", Decimal("1050.00")),
         ("12.345.678,90 TL", Decimal("12345678.90")),
+        ("1.299", Decimal("1299")),
+        ("1,299", Decimal("1299")),
+        ("12.345", Decimal("12345")),
+        ("1.299.000", Decimal("1299000")),
+        ("1.5", Decimal("1.5")),
+        ("1,50", Decimal("1.50")),
+        ("19.99", Decimal("19.99")),
+        ("1.299 TL", Decimal("1299")),
     ],
 )
 def test_price_normalization_valid_formats(raw_price: Any, expected: Decimal) -> None:
@@ -382,3 +390,16 @@ def test_non_ascii_digits_rejected(raw) -> None:
     # Kabul: given a price with non-ASCII (Arabic-Indic / fullwidth) digits, expect ParseError
     with pytest.raises(ParseError):
         normalize_price(raw)
+
+
+def test_jsonld_numeric_price_not_reinterpreted() -> None:
+    # Kabul: given JSON-LD price as JSON number 1.299, expect Decimal 1.299 (no thousands rule);
+    # given string "1.299", expect 1299
+    def html(price: str) -> str:
+        return (
+            '<script type="application/ld+json">{"@type":"Product","offers":'
+            '{"@type":"Offer","price":%s,"priceCurrency":"TRY"}}</script>' % price
+        )
+
+    assert parse_product(html("1.299")).price == Decimal("1.299")
+    assert parse_product(html('"1.299"')).price == Decimal("1299")

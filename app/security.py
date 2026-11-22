@@ -27,6 +27,24 @@ class UrlPolicy(NamedTuple):
     allowed_path_prefix: str | None = None
 
 
+class StrictUrlPolicy(UrlPolicy):
+    """UrlPolicy (2-tuple compatible) that also carries strict host+port matching."""
+
+    strict: bool
+    port: int | None
+
+    def __new__(
+        cls,
+        allowed_hosts: set[str],
+        allowed_path_prefix: str | None = None,
+        port: int | None = None,
+    ) -> "StrictUrlPolicy":
+        self = super().__new__(cls, allowed_hosts, allowed_path_prefix)
+        self.strict = True
+        self.port = port
+        return self
+
+
 def demo_policy(base_url: str | None = None) -> UrlPolicy:
     """Build the default demo allowlist policy for /mock-store/ endpoints."""
     effective_base = (
@@ -39,7 +57,15 @@ def demo_policy(base_url: str | None = None) -> UrlPolicy:
     host = parts.hostname
     if scheme not in ALLOWED_SCHEMES or not host:
         raise UrlNotAllowed(f"Invalid demo base URL: {effective_base!r}")
-    return UrlPolicy(allowed_hosts={host.lower()}, allowed_path_prefix="/mock-store/")
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise UrlNotAllowed(f"Invalid demo base URL: {effective_base!r}") from exc
+    if port is None:
+        port = 443 if scheme == "https" else 80
+    return StrictUrlPolicy(
+        allowed_hosts={host.lower()}, allowed_path_prefix="/mock-store/", port=port
+    )
 
 
 def _parse_ip_part(part: str) -> int | None:
@@ -165,8 +191,13 @@ def validate_url(
     allowed_hosts: Iterable[str],
     allowed_path_prefix: str | None = None,
     resolver: Callable[..., list[Any]] = socket.getaddrinfo,
+    strict_hosts: bool = False,
+    strict_port: int | None = None,
 ) -> str:
-    """Validate and normalize a URL against SSRF rules and optional host/path allowlists."""
+    """Validate and normalize a URL against SSRF rules and optional host/path allowlists.
+
+    With strict_hosts, only an exact allowed host (and strict_port, if given) passes; no DNS.
+    """
     if not isinstance(url, str):
         raise UrlNotAllowed("URL must be a string")
 
@@ -205,7 +236,17 @@ def validate_url(
     normalized_allowed = {h.strip().lower().strip("[]") for h in allowed_hosts}
     host_lower = host.lower()
 
-    if host_lower in normalized_allowed:
+    if strict_hosts:
+        strict_host = host_lower[:-1] if host_lower.endswith(".") else host_lower
+        allowed_norm = {h[:-1] if h.endswith(".") else h for h in normalized_allowed}
+        if strict_host not in allowed_norm:
+            raise UrlNotAllowed(f"Host {host_lower!r} is not in the strict allowlist")
+        effective = port or (443 if scheme == "https" else 80)
+        if strict_port is not None and effective != strict_port:
+            raise UrlNotAllowed(f"Port {effective} does not match allowed port {strict_port}")
+        host_lower = strict_host
+        canonical_host = host_lower
+    elif host_lower in normalized_allowed:
         canonical_host = host_lower
     else:
         ip_literal = _parse_ip_literal(host_lower)

@@ -147,7 +147,10 @@ def normalize_price(raw: Any) -> Decimal:
         else:
             if not re.fullmatch(r"\d+\.\d+", cleaned):
                 raise ParseError(f"Invalid dot price format: {raw!r}")
-            normalized = cleaned
+            if re.fullmatch(r"[1-9]\d{0,2}\.\d{3}", cleaned):
+                normalized = cleaned.replace(".", "")
+            else:
+                normalized = cleaned
     else:
         if not re.fullmatch(r"\d+", cleaned):
             raise ParseError(f"Invalid integer price format: {raw!r}")

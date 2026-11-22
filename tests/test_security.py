@@ -203,3 +203,60 @@ def test_injected_dns_resolver_rejects_private_and_mixed_ips_and_allows_public()
         resolver=public_resolver,
     )
     assert normalized == "https://public.example/product"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://evil.com:8000/mock-store/x",
+        "http://127.0.0.1.evil.com:8000/mock-store/x",
+        "http://127.0.0.1:9999/mock-store/x",
+        "http://127.0.0.1/mock-store/x",
+        "http://8.8.8.8:8000/mock-store/x",
+    ],
+)
+def test_demo_policy_is_strict_about_host_and_port(url: str) -> None:
+    # Kabul: given demo policy (base http://127.0.0.1:8000), expect any other host/port rejected
+    # even when the host resolves to a public IP
+    from app.fetcher import _unpack_policy  # noqa: F401
+
+    policy = demo_policy("http://127.0.0.1:8000")
+    public = lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))]  # noqa: E731
+    with pytest.raises(UrlNotAllowed):
+        validate_url(
+            url,
+            allowed_hosts=policy.allowed_hosts,
+            allowed_path_prefix=policy.allowed_path_prefix,
+            strict_hosts=getattr(policy, "strict", False),
+            strict_port=getattr(policy, "port", None),
+            resolver=public,
+        )
+
+
+def test_demo_policy_strict_accepts_exact_host_port_and_trailing_dot() -> None:
+    # Kabul: given exact allowed host+port (case, one trailing dot normalized), expect accepted
+    policy = demo_policy("http://Shop.Local:8000")
+    assert policy.strict is True and policy.port == 8000
+    kw = dict(
+        allowed_hosts=policy.allowed_hosts,
+        allowed_path_prefix=policy.allowed_path_prefix,
+        strict_hosts=policy.strict,
+        strict_port=policy.port,
+        resolver=lambda *a, **k: (_ for _ in ()).throw(AssertionError("no DNS")),
+    )
+    assert validate_url("http://SHOP.local.:8000/mock-store/a", **kw).endswith("/mock-store/a")
+    default_port = demo_policy("https://shop.local")
+    assert default_port.port == 443
+
+
+def test_fetch_html_rejects_foreign_host_under_demo_policy() -> None:
+    # Kabul: fetch_html with demo policy must reject evil.com before any network use
+    from app.fetcher import fetch_html
+
+    policy = demo_policy("http://127.0.0.1:8000")
+    with pytest.raises(UrlNotAllowed):
+        fetch_html(
+            "http://evil.com:8000/mock-store/x",
+            policy=policy,
+            resolver=lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))],
+        )

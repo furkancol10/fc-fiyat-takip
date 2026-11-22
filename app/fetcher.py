@@ -75,6 +75,8 @@ def fetch_html(
         allowed_hosts=allowed_hosts,
         allowed_path_prefix=allowed_path_prefix,
         resolver=resolver,
+        strict_hosts=bool(getattr(policy, "strict", False)),
+        strict_port=getattr(policy, "port", None),
     )
 
     owns_client = client is None
