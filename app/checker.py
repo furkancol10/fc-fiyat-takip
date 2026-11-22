@@ -196,11 +196,6 @@ def run_check(
 
             old_price: Decimal | None = comp["last_price"]
             old_in_stock: bool | None = comp["last_in_stock"]
-            history_in_stock = (
-                parsed.in_stock
-                if parsed.in_stock is not None
-                else (old_in_stock if old_in_stock is not None else True)
-            )
 
             try:
                 with conn.transaction():
@@ -210,7 +205,7 @@ def run_check(
                             INSERT INTO price_history (competitor_id, price, in_stock, checked_at)
                             VALUES (%s, %s, %s, %s)
                             """,
-                            (comp_id, parsed.price, history_in_stock, check_time),
+                            (comp_id, parsed.price, parsed.in_stock, check_time),
                         )
                         cur.execute(
                             """

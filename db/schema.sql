@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS price_history (
     id BIGSERIAL PRIMARY KEY,
     competitor_id BIGINT NOT NULL REFERENCES competitors(id) ON DELETE CASCADE,
     price NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
-    in_stock BOOLEAN NOT NULL,
+    in_stock BOOLEAN,
     checked_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -509,3 +509,34 @@ def test_unknown_stock_reading_keeps_last_known_in_stock(client, db_conn, monkey
         row = cur.fetchone()
     db_conn.commit()
     assert row == (Decimal("111.00"), True)
+
+
+def test_unknown_stock_writes_null_to_price_history(client, db_conn, monkeypatch) -> None:
+    # Kabul: given parse with in_stock=None (also on the very first measurement),
+    # expect every new price_history row has in_stock IS NULL (no invented True)
+    from types import SimpleNamespace
+
+    import app.checker as checker_mod
+
+    notifier, _calls, http_client = _counting_dry_run_notifier()
+    policy = demo_policy(str(client.base_url))
+    bridge_fetch = _make_bridge_fetch(client)
+    monkeypatch.setattr(
+        checker_mod,
+        "parse_product",
+        lambda html, **kw: SimpleNamespace(price=Decimal("111.00"), in_stock=None),
+    )
+    try:
+        run_check(db_conn, fetch=bridge_fetch, notifier=notifier, policy=policy, now=T0)
+    finally:
+        http_client.close()
+
+    with db_conn.cursor() as cur:
+        cur.execute("SELECT count(*), count(*) FILTER (WHERE in_stock IS NULL) FROM price_history")
+        total, nulls = cur.fetchone()
+        cur.execute("SELECT count(*) FROM competitors WHERE last_in_stock IS NOT NULL")
+        known = cur.fetchone()[0]
+    db_conn.commit()
+    assert total > 0
+    assert nulls == total
+    assert known == 0
