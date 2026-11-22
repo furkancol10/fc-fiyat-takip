@@ -2,10 +2,10 @@
 ## Amaç
 Mikro e-ticaret satıcısı için rakip fiyat/stok takibi; değişimde Telegram uyarısı ve basit panel (Bionluk portföy projesi 5).
 ## Stack
-TBD (mimari kararından sonra yazılır). Ön eğilim: Python + PostgreSQL + basit panel. LLM kullanılmaz.
+Python, FastAPI + Jinja2 + psycopg3, PostgreSQL (Neon). LLM yok. Mimari: docs/ARCHITECTURE.md (onaylı).
 ## Komutlar
-- test: TBD
-- build: TBD
+- test: pytest (kurulumdan sonra doğrulanacak)
+- çalıştır: uvicorn app.main:app --reload (kurulumdan sonra doğrulanacak)
 ## Model rolleri
 Claude = planlar, kod yazar, commit eder; Gem Neon = kod/plan review ve ikinci görüş; Hydrogen = araştırma özetleri (reports/). Ayrıntı: kullanıcının global ~/.claude/CLAUDE.md dosyası.
 ## Kurallar
