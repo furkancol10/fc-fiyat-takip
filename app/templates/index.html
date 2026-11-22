@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Genel Bakış — Rakip Fiyat ve Stok Takibi{% endblock %}
+
+{% block content %}
+{% if flash %}
+<div class="alert alert-{{ flash.kind }}" role="status">
+  {{ flash.text }}
+</div>
+{% endif %}
+
+{% if form_error %}
+<div class="alert alert-error" role="alert">
+  <strong>Doğrulama Hatası:</strong> {{ form_error }}
+</div>
+{% endif %}
+
+<section class="toolbar" aria-label="Hızlı işlemler">
+  <div class="quota-summary">
+    <span>Ürün kotası: <strong>{{ product_count }} / {{ max_products }}</strong></span>
+    <span>Rakip kotası: <strong>{{ competitor_count }} / {{ max_competitors }}</strong></span>
+  </div>
+  <form method="post" action="/panel/check" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-primary">Şimdi Kontrol Et</button>
+  </form>
+</section>
+
+<section class="card" aria-labelledby="urunler-baslik">
+  <h2 id="urunler-baslik">İzlenen Ürünler ve Rakipler</h2>
+  {% if not products %}
+  <p class="muted">Henüz kayıtlı ürün yok.</p>
+  {% endif %}
+
+  {% for product in products %}
+  <article class="product-block">
+    <div class="product-header">
+      <h3>
+        <a href="/products/{{ product.id }}">{{ product.name }}</a>
+        <span class="sku-tag">{{ product.sku }}</span>
+      </h3>
+      <div class="my-price">
+        Benim Fiyatım: <strong>{{ product.my_price_fmt }} {{ product.currency }}</strong>
+      </div>
+    </div>
+
+    {% if product.competitors %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Mağaza</th>
+            <th scope="col">Son Fiyat</th>
+            <th scope="col">Fark (%)</th>
+            <th scope="col">Stok</th>
+            <th scope="col">Son Durum</th>
+            <th scope="col">Son Kontrol</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for comp in product.competitors %}
+          <tr>
+            <td>
+              <div class="store-name">{{ comp.store_name }}</div>
+              <div class="small-meta">{{ comp.url }} ({{ comp.parse_mode }})</div>
+            </td>
+            <td class="num">{{ comp.last_price_fmt }} {{ product.currency if comp.last_price is not none else '' }}</td>
+            <td class="num"><span class="{{ comp.diff_class }}">{{ comp.diff_pct_str }}</span></td>
+            <td><span class="badge {{ comp.stock_class }}">{{ comp.stock_label }}</span></td>
+            <td><span class="badge {{ comp.status_class }}">{{ comp.status_text }}</span></td>
+            <td class="small-meta">{{ comp.last_checked_fmt }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="muted">Bu ürün için henüz rakip eklenmemiş.</p>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+
+<section class="card" aria-labelledby="uyarilar-baslik">
+  <h2 id="uyarilar-baslik">Son 20 Uyarı</h2>
+  {% if alert_logs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Zaman</th>
+          <th scope="col">Ürün / Mağaza</th>
+          <th scope="col">Tür</th>
+          <th scope="col">Eski → Yeni</th>
+          <th scope="col">Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in alert_logs %}
+        <tr>
+          <td class="small-meta">{{ log.created_at_fmt }}</td>
+          <td>{{ log.product_name }} / {{ log.store_name }}</td>
+          <td>{{ log.event_label }}</td>
+          <td class="num">{{ log.old_val or '—' }} → {{ log.new_val or '—' }}</td>
+          <td><span class="badge badge-status-{{ log.status }}">{{ log.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">Henüz kaydedilmiş uyarı yok.</p>
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="demo-araci-baslik">
+  <h2 id="demo-araci-baslik">Sahte Mağazayı Değiştir (Demo Aracı)</h2>
+  <p class="muted">Demo ürünlerinin fiyat veya stok bilgisini güncelleyip ardından <strong>Şimdi Kontrol Et</strong> düğmesine basarak uyarı akışını deneyebilirsiniz.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Mağaza Sayfası</th>
+          <th scope="col">Biçim</th>
+          <th scope="col">Fiyat / Stok Güncelle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in mock_items %}
+        <tr>
+          <td>
+            <a href="/mock-store/{{ item.slug }}">{{ item.name }}</a>
+            <div class="small-meta">/mock-store/{{ item.slug }}</div>
+          </td>
+          <td><span class="badge badge-unknown">{{ item.render_mode }}</span></td>
+          <td>
+            <form method="post" action="/panel/mock/{{ item.slug }}" class="mock-edit-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <label for="price-{{ item.slug }}" class="sr-only">{{ item.slug }} fiyatı</label>
+              <input
+                id="price-{{ item.slug }}"
+                name="price"
+                type="text"
+                inputmode="decimal"
+                value="{{ item.price_fmt }}"
+                required
+              >
+              <label for="stock-{{ item.slug }}" class="sr-only">{{ item.slug }} stok durumu</label>
+              <select id="stock-{{ item.slug }}" name="in_stock">
+                <option value="true" {% if item.in_stock %}selected{% endif %}>Stokta</option>
+                <option value="false" {% if not item.in_stock %}selected{% endif %}>Tükendi</option>
+              </select>
+              <button type="submit" class="btn btn-secondary">Güncelle</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="forms-grid" aria-label="Kayıt formları">
+  <div class="card">
+    <h2>Ürün Ekle</h2>
+    <form method="post" action="/panel/products" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="prod-name">Ürün Adı</label>
+        <input id="prod-name" name="name" type="text" maxlength="100" required>
+      </div>
+      <div class="field">
+        <label for="prod-sku">SKU</label>
+        <input id="prod-sku" name="sku" type="text" maxlength="50" required>
+      </div>
+      <div class="field">
+        <label for="prod-price">Benim Fiyatım (TRY)</label>
+        <input id="prod-price" name="my_price" type="text" inputmode="decimal" placeholder="1299.90" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Ürün Ekle</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Rakip Ekle</h2>
+    <form method="post" action="/panel/competitors" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="comp-product">Ürün</label>
+        <select id="comp-product" name="product_id" required>
+          {% for product in products %}
+          <option value="{{ product.id }}">{{ product.name }} ({{ product.sku }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="comp-store">Mağaza Adı</label>
+        <input id="comp-store" name="store_name" type="text" maxlength="100" required>
+      </div>
+      <div class="field">
+        <label for="comp-url">URL (yalnızca /mock-store/...)</label>
+        <input id="comp-url" name="url" type="text" maxlength="500" placeholder="/mock-store/kahve-diyari-filtre-makine" required>
+      </div>
+      <div class="field">
+        <label for="comp-mode">Ayrıştırma Modu</label>
+        <select id="comp-mode" name="parse_mode">
+          <option value="auto">auto</option>
+          <option value="jsonld">jsonld</option>
+          <option value="css">css</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Rakip Ekle</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Uyarı Kuralı Ekle</h2>
+    <form method="post" action="/panel/rules" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label for="rule-comp">Rakip</label>
+        <select id="rule-comp" name="competitor_id" required>
+          {% for comp in all_competitors %}
+          <option value="{{ comp.id }}">{{ comp.product_name }} — {{ comp.store_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="rule-type">Kural Türü</label>
+        <select id="rule-type" name="rule_type">
+          <option value="below_price">below_price (Fiyat eşik altı)</option>
+          <option value="pct_drop">pct_drop (Yüzde düşüş)</option>
+          <option value="stock_change">stock_change (Stok değişimi)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="rule-threshold">Eşik Değeri (stok değişiminde boş bırakılabilir)</label>
+        <input id="rule-threshold" name="threshold_value" type="text" inputmode="decimal" placeholder="2400.00 veya 5.00">
+      </div>
+      <div class="field">
+        <label for="rule-cooldown">Bekleme Süresi (dakika, en az 1)</label>
+        <input id="rule-cooldown" name="cooldown_min" type="number" min="1" max="43200" value="60" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Kural Ekle</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -5,20 +5,46 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from psycopg.rows import dict_row
 
 from app.db import get_connection
+from app.jobs import router as jobs_router
+from app.panel import router as panel_router
 
-TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
 jinja_env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=select_autoescape(enabled_extensions=("html", "xml"), default=True),
 )
 
+SECURITY_HEADERS: dict[str, str] = {
+    "Content-Security-Policy": (
+        "default-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
+
 app = FastAPI(title="fc-fiyat-takip")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for header, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(header, value)
+    return response
+
+
+app.include_router(jobs_router)
+app.include_router(panel_router)
 
 
 def _safe_jsonld_dumps(payload: dict[str, Any]) -> str:

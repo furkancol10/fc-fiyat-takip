@@ -113,3 +113,47 @@ def client():
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def reset_runtime_state():
+    try:
+        from app.limits import reset_limits
+
+        reset_limits()
+    except ImportError:
+        pass
+    yield
+    try:
+        from app.limits import reset_limits
+
+        reset_limits()
+    except ImportError:
+        pass
+    from app.main import app
+
+    app.dependency_overrides.clear()
+    for attr in ("fetch_override", "notifier_override", "policy_override", "now_override"):
+        if hasattr(app.state, attr):
+            delattr(app.state, attr)
+
+
+@pytest.fixture()
+def wired_client():
+    from app.fetcher import fetch_html
+    from app.main import app
+    from app.security import demo_policy
+
+    with TestClient(app) as test_client:
+        def _bridge_fetch(url: str, *, policy):
+            return fetch_html(url, client=test_client, policy=policy, sleep=lambda _: None)
+
+        app.state.fetch_override = _bridge_fetch
+        app.state.policy_override = demo_policy(str(test_client.base_url))
+        try:
+            yield test_client
+        finally:
+            app.dependency_overrides.clear()
+            for attr in ("fetch_override", "notifier_override", "policy_override", "now_override"):
+                if hasattr(app.state, attr):
+                    delattr(app.state, attr)

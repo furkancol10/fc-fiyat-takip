@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Fiyat ve Stok Takip Paneli{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#ana-icerik">Ana içeriğe atla</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div>
+        <h1 class="site-title"><a href="/">Rakip Fiyat ve Stok Takibi</a></h1>
+        <p class="site-subtitle">Mikro e-ticaret satıcısı için sade rakip izleme ve uyarı paneli</p>
+      </div>
+      <nav aria-label="Ana gezinme">
+        <a class="nav-link" href="/">Genel Bakış</a>
+      </nav>
+    </div>
+  </header>
+
+  {% if dry_run %}
+  <div class="banner banner-info" role="status">
+    <div class="container">
+      <strong>Demo modu: Telegram mesajları gönderilmez (dry_run)</strong>
+    </div>
+  </div>
+  {% endif %}
+
+  <main id="ana-icerik" class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>fc-fiyat-takip — Demo sürüm (yalnızca yerel sahte mağaza hedefleri izlenir).</p>
+    </div>
+  </footer>
+</body>
+</html>

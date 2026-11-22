@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — Ürün Detayı{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">← Genel Bakışa Dön</a>
+</div>
+
+<section class="card">
+  <h2>{{ product.name }} <span class="sku-tag">{{ product.sku }}</span></h2>
+  <p>Benim Fiyatım: <strong>{{ product.my_price_fmt }} {{ product.currency }}</strong></p>
+</section>
+
+{% if not competitors %}
+<section class="card">
+  <p class="muted">Bu ürün için kayıtlı rakip bulunmuyor.</p>
+</section>
+{% endif %}
+
+{% for comp in competitors %}
+<section class="card" aria-labelledby="rakip-{{ comp.id }}">
+  <div class="product-header">
+    <div>
+      <h3 id="rakip-{{ comp.id }}">{{ comp.store_name }}</h3>
+      <div class="small-meta">{{ comp.url }} — Mod: {{ comp.parse_mode }}</div>
+    </div>
+    <div class="small-meta">
+      Son fiyat: <strong>{{ comp.last_price_fmt }} {{ product.currency if comp.last_price is not none else '' }}</strong>
+      | Stok: <strong>{{ comp.stock_label }}</strong>
+      | Son kontrol: {{ comp.last_checked_fmt }}
+    </div>
+  </div>
+
+  {% if comp.chart %}
+  <div class="chart-wrap">
+    <h4>Fiyat Geçmişi Grafiği (Son {{ comp.chart.count }} Ölçüm)</h4>
+    <svg
+      class="price-chart"
+      viewBox="0 0 {{ comp.chart.width }} {{ comp.chart.height }}"
+      role="img"
+      aria-label="{{ comp.store_name }} fiyat geçmişi grafiği"
+    >
+      <line class="chart-axis" x1="{{ comp.chart.pad_x }}" y1="{{ comp.chart.pad_y }}" x2="{{ comp.chart.pad_x }}" y2="{{ comp.chart.bottom_y }}" />
+      <line class="chart-axis" x1="{{ comp.chart.pad_x }}" y1="{{ comp.chart.bottom_y }}" x2="{{ comp.chart.width - 12 }}" y2="{{ comp.chart.bottom_y }}" />
+      <text class="chart-label" x="4" y="{{ comp.chart.pad_y + 4 }}">{{ comp.chart.max_label }}</text>
+      <text class="chart-label" x="4" y="{{ comp.chart.bottom_y }}">{{ comp.chart.min_label }}</text>
+      <polyline class="chart-line" fill="none" points="{{ comp.chart.polyline }}" />
+      {% for pt in comp.chart.points %}
+      <circle class="chart-point" cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.5">
+        <title>{{ pt.label }}</title>
+      </circle>
+      {% endfor %}
+    </svg>
+  </div>
+  {% else %}
+  <p class="muted">Bu rakip için henüz fiyat geçmişi ölçümü yok.</p>
+  {% endif %}
+
+  {% if comp.history %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Kontrol Zamanı</th>
+          <th scope="col">Fiyat</th>
+          <th scope="col">Stok Durumu</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in comp.history %}
+        <tr>
+          <td class="small-meta">{{ row.checked_at_fmt }}</td>
+          <td class="num">{{ row.price_fmt }} {{ product.currency }}</td>
+          <td>{{ row.stock_label }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}
