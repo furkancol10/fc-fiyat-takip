@@ -1,5 +1,7 @@
 # fc-fiyat-takip
 
+![tests](https://github.com/furkancol10/fc-fiyat-takip/actions/workflows/test.yml/badge.svg)
+
 ## Ne yapar
 
 `fc-fiyat-takip`, mikro e-ticaret satıcıları için rakip ürünlerin fiyat ve stok durumlarını URL üzerinden takip eden FastAPI, Jinja2 ve PostgreSQL (`psycopg3`) tabanlı bir web uygulamasıdır. Tanımlı kurallara (`below_price`, `pct_drop`, `stock_change`) göre değişimde uyarı üretir, geçmişi kaydeder ve sade bir web paneli sunar. Demo sürüm yalnızca yerleşik sahte mağazayı (`/mock-store/{slug}`) tarar ve Telegram bildirimlerini varsayılan olarak `dry_run` modunda kaydeder.
